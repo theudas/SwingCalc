@@ -1,0 +1,11 @@
+# 打包工具，npm install 可重新安装
+node_modules/
+
+# 打包产物（约 36MB，每次重新打包都会变）
+dist/
+
+# macOS
+.DS_Store
+
+# 测试截图等临时文件
+*.png

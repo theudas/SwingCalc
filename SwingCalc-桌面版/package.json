@@ -1,0 +1,23 @@
+{
+  "name": "swingcalc",
+  "version": "1.0.0",
+  "description": "波段计算器 · 桌面版",
+  "main": "server.js",
+  "bin": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build:win": "pkg . --target node18-win-x64 --output dist/波段计算器.exe --compress GZip",
+    "build:mac": "pkg . --target node18-macos-arm64 --output dist/波段计算器-mac --compress GZip"
+  },
+  "pkg": {
+    "assets": [
+      "SwingCalc.html"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ]
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  }
+}

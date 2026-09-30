@@ -1,0 +1,1701 @@
+<title>波段计算器</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="波段计算器">
+<meta name="theme-color" content="#C4382B">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon180.png">
+<link rel="icon" href="icon180.png">
+
+<style>
+:root{
+  --paper:#FAF6F0; --card:#FFFFFF; --ink:#1C1917; --ink-2:#57534E; --ink-3:#8A8178;
+  --line:#E8E0D5; --line-2:#F0EAE1;
+  --up:#C4382B; --down:#2E7D5B; --warn:#B4690E;
+  --accent:#C4382B; --accent-soft:#FBEDEA; --down-soft:#E8F3ED;
+  --shadow:0 1px 2px rgba(28,25,23,.05), 0 8px 24px -12px rgba(28,25,23,.12);
+  --r:14px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#17130F; --card:#211C18; --ink:#F5EFE7; --ink-2:#B5ADA3; --ink-3:#8A8178;
+    --line:#332B25; --line-2:#2A241F;
+    --up:#F2685A; --down:#4FBE8B; --warn:#E0A33A;
+    --accent:#F2685A; --accent-soft:#33211E; --down-soft:#172D24;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#17130F; --card:#211C18; --ink:#F5EFE7; --ink-2:#B5ADA3; --ink-3:#8A8178;
+  --line:#332B25; --line-2:#2A241F;
+  --up:#F2685A; --down:#4FBE8B; --warn:#E0A33A;
+  --accent:#F2685A; --accent-soft:#33211E; --down-soft:#172D24;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:17px; line-height:1.5;
+  -webkit-text-size-adjust:100%; -webkit-tap-highlight-color:transparent;
+  padding-bottom:calc(72px + env(safe-area-inset-bottom));
+}
+.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono","Cascadia Mono","Segoe UI Mono","Roboto Mono",Menlo,Consolas,monospace; font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit; color:inherit}
+button{cursor:pointer; border:none; background:none}
+input,select{
+  background:var(--card); border:1px solid var(--line); border-radius:10px;
+  padding:11px 13px; width:100%; color:var(--ink);
+}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.up{color:var(--up)} .down{color:var(--down)} .muted{color:var(--ink-2)} .faint{color:var(--ink-3)}
+
+/* ── 页头 ── */
+header{
+  padding:calc(12px + env(safe-area-inset-top)) 20px 10px;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+}
+h1{font-size:30px; font-weight:700; margin:0; letter-spacing:-.02em}
+.addbtn{
+  width:44px; height:44px; border-radius:50%; background:var(--card);
+  box-shadow:var(--shadow); font-size:26px; color:var(--accent); line-height:1;
+  display:grid; place-items:center; flex:none;
+}
+
+/* 宽度跟着浏览器走，最宽 1180px；表单类页面（设置、编辑）另外收窄居中 */
+main{padding:0 16px; max-width:1180px; margin:0 auto}
+header{max-width:1180px; margin:0 auto}
+#v-set{max-width:680px; margin:0 auto}
+.posgrid{display:grid; gap:12px; grid-template-columns:repeat(auto-fill, minmax(min(100%, 300px), 1fr))}
+.posgrid .pos{background:var(--card); border-radius:var(--r); box-shadow:var(--shadow)}
+.posgrid .pos+.pos{border-top:none}
+.posgrid .pos:hover{background:color-mix(in srgb, var(--line-2) 50%, var(--card))}
+@media (min-width:960px){
+  .txlayout{display:grid; grid-template-columns:380px minmax(0,1fr); gap:20px; align-items:start}
+  .txside{position:sticky; top:12px}
+}
+#rangef button{padding:8px 4px; font-size:14.5px}
+.sec{margin-bottom:22px}
+.sec-h{
+  font-size:13px; font-weight:600; color:var(--ink-2); text-transform:none;
+  letter-spacing:.04em; padding:0 4px 8px;
+}
+.sec-f{font-size:13px; color:var(--ink-3); padding:8px 4px 0; line-height:1.45}
+.card{background:var(--card); border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden}
+
+/* 汇总行 */
+.row{display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:13px 16px}
+.row+.row{border-top:1px solid var(--line-2)}
+.row .k{color:var(--ink-2); font-size:15px}
+.row .v{font-size:16px}
+.row.big .v{font-size:19px; font-weight:600}
+
+/* 持仓卡 */
+.pos{padding:15px 16px; display:block; width:100%; text-align:left; position:relative}
+.pos+.pos{border-top:1px solid var(--line-2)}
+.pos:active{background:var(--line-2)}
+.pos-top{display:flex; align-items:flex-start; justify-content:space-between; gap:10px}
+.pos-name{font-size:19px; font-weight:600; letter-spacing:-.01em}
+.pos-code{font-size:12px; color:var(--ink-3); margin-top:1px}
+.pos-qty{font-size:15px; color:var(--ink-2); flex:none; padding-top:2px}
+.pos-avg{display:flex; align-items:baseline; justify-content:space-between; margin-top:9px}
+.pos-avg .k{font-size:15px; color:var(--ink-2)}
+.pos-avg .v{font-size:21px; font-weight:600}
+.pos-line{display:flex; align-items:baseline; justify-content:space-between; margin-top:5px; font-size:13px}
+.pos-line .k{color:var(--ink-2)}
+.chev{position:absolute; right:14px; top:50%; transform:translateY(-50%); color:var(--ink-3); font-size:19px}
+.pos{padding-right:34px}
+
+/* 流水行 */
+.tx{display:flex; align-items:center; gap:11px; padding:12px 16px; width:100%; text-align:left}
+.tx+.tx{border-top:1px solid var(--line-2)}
+.tx:active{background:var(--line-2)}
+.badge{
+  font-size:12px; font-weight:600; padding:3px 7px; border-radius:5px; flex:none;
+}
+.badge.b{background:var(--accent-soft); color:var(--up)}
+.badge.s{background:var(--down-soft); color:var(--down)}
+.tx-mid{flex:1; min-width:0}
+.tx-t{font-size:15px; display:flex; align-items:baseline; gap:6px; flex-wrap:wrap}
+.tx-sub{font-size:12.5px; color:var(--ink-3); margin-top:2px}
+.tx-amt{font-size:15px; flex:none}
+
+/* 警告条 */
+.warnbox{
+  background:color-mix(in srgb, var(--warn) 10%, var(--card));
+  border-radius:var(--r); padding:13px 15px; font-size:14px; line-height:1.5;
+}
+.warnbox b{color:var(--warn); display:block; margin-bottom:5px; font-size:14.5px}
+
+/* 空状态 */
+.empty{text-align:center; padding:64px 24px; color:var(--ink-2)}
+.empty .ico{font-size:46px; opacity:.35; margin-bottom:10px}
+.empty h3{margin:0 0 6px; font-size:18px; color:var(--ink); font-weight:600}
+.empty p{margin:0; font-size:15px; line-height:1.6}
+
+/* 底部 Tab */
+nav{
+  position:fixed; left:0; right:0; bottom:0; z-index:40;
+  background:color-mix(in srgb, var(--card) 88%, transparent);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-top:1px solid var(--line);
+  display:flex; padding-bottom:env(safe-area-inset-bottom);
+}
+nav button{
+  flex:1; padding:9px 4px 8px; display:flex; flex-direction:column; align-items:center; gap:3px;
+  color:var(--ink-3); font-size:11px; min-height:52px;
+}
+nav button.on{color:var(--accent)}
+nav svg{width:25px; height:25px}
+
+/* 筛选 */
+.seg{display:flex; background:var(--line-2); border-radius:9px; padding:3px; gap:3px; margin:0 0 2px}
+.seg button{flex:1; padding:8px; border-radius:7px; font-size:15px; color:var(--ink-2)}
+.seg button.on{background:var(--card); color:var(--ink); font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.filterbar{padding:14px 16px; display:flex; flex-direction:column; gap:11px}
+.daterow{display:flex; gap:9px; align-items:center}
+.daterow input{flex:1; min-width:0; font-size:15px; padding:9px 11px}
+.daterow span{color:var(--ink-3); flex:none; font-size:15px}
+.dl{flex:1; min-width:0; display:flex; align-items:center; gap:8px; font-size:15px; color:var(--ink-2)}
+.dl input{flex:1; min-width:0}
+.searchwrap{position:relative}
+.searchwrap input{padding-left:36px}
+.searchwrap .si{position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--ink-3)}
+
+/* 设置 */
+.item{
+  display:flex; align-items:center; gap:12px; padding:15px 16px; width:100%; text-align:left; font-size:16px;
+}
+.item+.item{border-top:1px solid var(--line-2)}
+.item:active{background:var(--line-2)}
+.item .ic{width:26px; text-align:center; color:var(--accent); font-size:18px; flex:none}
+.item .ar{margin-left:auto; color:var(--ink-3)}
+.feerow{display:flex; align-items:center; gap:10px; padding:13px 16px}
+.feerow label{color:var(--ink-2); font-size:15px; flex:none}
+.feerow input{text-align:right; width:auto; flex:1}
+
+/* 弹层 */
+.sheet{
+  position:fixed; inset:0; z-index:60; display:none;
+  background:rgba(28,25,23,.42); backdrop-filter:blur(2px);
+}
+.sheet.on{display:block}
+.sheet-in{
+  position:absolute; left:0; right:0; bottom:0; max-height:94vh; overflow-y:auto;
+  max-width:1240px; margin:0 auto;
+  background:var(--paper); border-radius:20px 20px 0 0;
+  padding-bottom:calc(24px + env(safe-area-inset-bottom));
+  animation:up .26s cubic-bezier(.32,.72,0,1);
+}
+@keyframes up{from{transform:translateY(100%)}}
+@media (prefers-reduced-motion:reduce){.sheet-in{animation:none}}
+.sheet-h{
+  position:sticky; top:0; z-index:2; background:var(--paper);
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:15px 16px 12px; border-bottom:1px solid var(--line);
+}
+.sheet-h h2{margin:0; font-size:17px; font-weight:600}
+.sheet-h button{font-size:16px; color:var(--accent); padding:5px 2px; min-width:48px}
+.sheet-h button:last-child{text-align:right; font-weight:600}
+.sheet-h button:disabled{color:var(--ink-3); font-weight:400}
+.sheet-b{padding:16px}
+.sheet-b:not(:has(.detail)){max-width:680px; margin:0 auto}
+.field{margin-bottom:15px}
+.field label{display:block; font-size:14px; color:var(--ink-2); margin-bottom:6px; font-weight:500}
+.hint{font-size:13px; color:var(--ink-3); margin-top:6px; line-height:1.45}
+.hint.warn{color:var(--warn)}
+.suffix{position:relative}
+.suffix input{padding-right:36px}
+.suffix span{position:absolute; right:13px; top:50%; transform:translateY(-50%); color:var(--ink-3)}
+.dangerbtn{
+  width:100%; padding:14px; border-radius:11px; background:var(--accent-soft);
+  color:var(--up); font-size:16px; font-weight:600; margin-top:6px;
+}
+.primarybtn{
+  width:100%; padding:14px; border-radius:11px; background:var(--accent);
+  color:#fff; font-size:16px; font-weight:600;
+}
+.ghostbtn{
+  width:100%; padding:13px; border-radius:11px; border:1px solid var(--line);
+  font-size:16px; color:var(--ink-2); margin-top:9px; background:var(--card);
+}
+.toast{
+  position:fixed; left:50%; bottom:calc(86px + env(safe-area-inset-bottom));
+  transform:translateX(-50%) translateY(8px); z-index:90;
+  background:var(--ink); color:var(--paper); padding:11px 19px; border-radius:22px;
+  font-size:14.5px; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s;
+  max-width:calc(100vw - 40px); text-align:center;
+}
+.toast.on{opacity:1; transform:translateX(-50%) translateY(0)}
+.hide{display:none !important}
+.tag{font-size:11px; padding:1px 6px; border-radius:4px; background:var(--line-2); color:var(--ink-2); margin-left:4px}
+.histbar{background:var(--line-2); border-radius:var(--r); padding:12px 15px; font-size:14.5px; color:var(--ink-2)}
+.fl{font-size:13px; color:var(--ink-2); margin-bottom:-5px}
+.rangeinfo{font-size:13.5px; color:var(--ink-2)}
+.rangeinfo b{color:var(--ink); font-weight:600}
+
+/* ── 标的详情：买卖对照 ── */
+.detail{max-width:1180px; margin:0 auto}
+.kpis{display:grid; gap:10px; grid-template-columns:repeat(2,minmax(0,1fr))}
+/* 宽屏时不管几张卡都排成一行、等宽 */
+@media (min-width:720px){ .kpis{grid-template-columns:none; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr)} }
+.kpi{background:var(--card); border-radius:var(--r); box-shadow:var(--shadow); padding:14px 16px}
+.kpi .k{font-size:13.5px; color:var(--ink-2)}
+.kpi .v{font-size:24px; font-weight:700; margin-top:4px; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.kpi .s{font-size:12.5px; color:var(--ink-3); margin-top:2px}
+.spread{font-size:14px; color:var(--ink-2); padding:10px 4px 0; line-height:1.5}
+.ledgers{display:grid; grid-template-columns:minmax(0,1fr); gap:18px}
+@media (min-width:1100px){ .ledgers{grid-template-columns:repeat(2,minmax(0,1fr))} }
+.ledger-h{display:flex; align-items:center; gap:8px; padding:0 4px 8px; font-size:15px; font-weight:600}
+.ledger-h .faint{font-weight:400; font-size:13px}
+.tblwrap{overflow-x:auto}
+table.lg{width:100%; border-collapse:collapse; font-size:14px; white-space:nowrap}
+table.lg th{font-size:12.5px; font-weight:600; color:var(--ink-2); text-align:right; padding:10px 12px 8px; border-bottom:1px solid var(--line)}
+table.lg td{text-align:right; padding:10px 12px; border-top:1px solid var(--line-2)}
+table.lg th:first-child, table.lg td:first-child{text-align:left}
+table.lg tbody tr{cursor:pointer}
+table.lg tbody tr:hover{background:var(--line-2)}
+table.lg tfoot td{border-top:2px solid var(--line); font-weight:600; background:color-mix(in srgb, var(--paper) 60%, var(--card))}
+table.lg .hl{background:color-mix(in srgb, #F5C542 30%, transparent); border-radius:5px; padding:2px 6px}
+table.lg .empty-row td{text-align:center; color:var(--ink-3); cursor:default}
+</style>
+
+<header>
+  <h1 id="ttl">持仓</h1>
+  <button class="addbtn" id="add" aria-label="添加交易">+</button>
+</header>
+
+<main>
+  <div id="v-pos"></div>
+  <div id="v-tx" class="hide"></div>
+  <div id="v-set" class="hide"></div>
+</main>
+
+<nav>
+  <button id="t0" class="on" data-tab="0">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10h-10z" opacity=".55"/><path d="M13 1v9h9a10 10 0 0 0-9-9z"/></svg>
+    持仓
+  </button>
+  <button id="t1" data-tab="1">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+    流水
+  </button>
+  <button id="t2" data-tab="2">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
+    设置
+  </button>
+</nav>
+
+<div class="sheet" id="sheet"><div class="sheet-in" id="sheet-in"></div></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+/* SwingCalc 核心算法 —— 由 iOS 版 SwingCalc/Core/ 逐行移植。
+ *
+ * 移植原则：数值口径与 Swift 版完全一致，不做"网页版简化"。
+ * 对应源文件：PositionCalculator.swift / TradeDTO.swift / Validation.swift
+ *             / Formatting.swift / BackupCodec.swift / MergePlanner.swift
+ */
+
+export const QTY_EPS = 1e-9;
+export const MONEY_EPS = 1e-6;
+export const FEE_RATE_MAX = 1; // 合法费率区间 [0, 1)
+
+/* ── 标的归一化 ───────────────────────────────────────────── */
+
+// 代码去空格转大写，使 "600519.sh" 与 "600519.SH " 是同一个标的。
+export function normalizeCode(raw) {
+  return String(raw ?? '').trim().toUpperCase();
+}
+
+// 名称只去首尾空白，不转大写——中文不受影响，英文名全大写很难看。
+// 空白一律收敛成 null，避免"有名称但是空的"这种中间态。
+export function normalizeName(raw) {
+  const t = String(raw ?? '').trim();
+  return t === '' ? null : t;
+}
+
+export function displayTitle(rec) {
+  return rec.name && rec.name !== '' ? rec.name : rec.code;
+}
+
+/* ── 校验 ─────────────────────────────────────────────────── */
+
+// 返回 null 表示合法，否则返回中文的失败原因。
+export function validationFailure(t) {
+  if (!t.code) return '代码为空';
+  if (!Number.isFinite(t.price) || !Number.isFinite(t.quantity) || !Number.isFinite(t.feeRate))
+    return '存在非法数值';
+  if (!Number.isFinite(new Date(t.date).getTime())) return '日期非法';
+  if (t.price < 0) return '价格为负数';        // 价格为 0 合法：空投、送股
+  if (t.quantity <= 0) return '数量必须大于 0';
+  if (!(t.feeRate >= 0 && t.feeRate < FEE_RATE_MAX)) return '费率必须在 0 到 1 之间';
+  return null;
+}
+
+export const isValid = (t) => validationFailure(t) === null;
+
+// 真实的失误模式是小数点错位（0.03% 填成 3%），不是填了 ≥100%。
+export const feeRateLooksSuspicious = (r) => r > 0.01;
+
+/* ── 排序 ─────────────────────────────────────────────────── */
+
+const sideRank = (s) => (s === 'buy' ? 0 : 1);
+const ts = (d) => new Date(d).getTime();
+
+// 台账顺序：日期 → 方向（买在前）→ 插入时间 → id。
+//
+// 买入优先是硬要求，不是美观问题：日期只精确到天时，同一天的一轮完整波段两笔
+// 都落在午夜，卖出若排在前面会误报超卖并把落袋算成 0。
+export function sortTrades(trades) {
+  return [...trades].sort((a, b) => {
+    const da = ts(a.date), db = ts(b.date);
+    if (da !== db) return da - db;
+    if (sideRank(a.side) !== sideRank(b.side)) return sideRank(a.side) - sideRank(b.side);
+    const ca = ts(a.createdAt ?? a.date), cb = ts(b.createdAt ?? b.date);
+    if (ca !== cb) return ca - cb;
+    return String(a.id).localeCompare(String(b.id));
+  });
+}
+
+/* ── 移动加权平均成本引擎 ─────────────────────────────────── */
+
+/* 与原始 PRD §3.2 的全局批量公式不同。批量公式是非因果的：一笔新买入会倒回去
+ * 改变此前已了结交易显示的利润。
+ *
+ *     买 100@10 → 卖 100@12 → 买 100@20
+ *     批量公式：P_avg = 15，落袋 = 1200 − 1500 = −300（赚钱的交易显示亏损）
+ *     移动平均：落袋 = +200
+ *
+ * 当所有买入都发生在所有卖出之前时（最常见的单轮波段），两者结果完全一致。
+ */
+export function position(code, trades) {
+  const sorted = sortTrades(trades);
+
+  // 名称取最近一笔填了名称的交易：改过名之后应当显示新名字。
+  let latestName = null;
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    if (sorted[i].name) { latestName = sorted[i].name; break; }
+  }
+  const title = latestName || code;
+
+  let quantity = 0, costBook = 0, realized = 0;
+  let totalBuyQuantity = 0, totalSellQuantity = 0, totalFees = 0;
+  // 买卖对照表用：成交额（不含费）与净额（买入含费 / 卖出扣费）。
+  let buyGross = 0, buyNet = 0, sellGross = 0, sellNet = 0;
+  // 已结转成本：卖出部分对应的买入成本之和，收益率的分母。
+  let realizedCost = 0;
+  // 出现"卖出之后又买入"即为多轮波段，此时"卖均 − 买均"不再等于每股利润。
+  let soldBefore = false, multiRound = false;
+  let tradeCount = 0, lastTradeDate = null;
+  const diagnostics = [];
+
+  for (const t of sorted) {
+    // 引擎是全函数：非法记录被跳过并记诊断，绝不抛错。编辑和导入都可能让
+    // 一条原本合法的记录事后变得非法。
+    const bad = validationFailure(t);
+    if (bad) {
+      diagnostics.push({ kind: 'invalid', title, reason: bad, recordId: t.id, date: t.date });
+      continue;
+    }
+
+    tradeCount++;
+    lastTradeDate = t.date;
+
+    if (t.side === 'buy') {
+      const gross = t.price * t.quantity;
+      const fee = gross * t.feeRate;
+      totalFees += fee;
+      costBook += gross + fee;
+      quantity += t.quantity;
+      totalBuyQuantity += t.quantity;
+      buyGross += gross;
+      buyNet += gross + fee;
+      if (soldBefore) multiRound = true;
+    } else {
+      if (quantity <= QTY_EPS) {
+        // 无持仓卖出。收入不计入利润——那等于凭空造钱。
+        diagnostics.push({
+          kind: 'oversold', title, requested: t.quantity, available: 0,
+          recordId: t.id, date: t.date,
+        });
+        continue;
+      }
+
+      let effQty = t.quantity;
+      if (t.quantity > quantity + QTY_EPS) {
+        diagnostics.push({
+          kind: 'oversold', title, requested: t.quantity, available: quantity,
+          recordId: t.id, date: t.date,
+        });
+        effQty = quantity;
+      }
+
+      // 手续费按实际成交量算：超卖被截断时，被丢弃的部分没有真实成交。
+      const proceedsFee = t.price * effQty * t.feeRate;
+      const proceeds = t.price * effQty - proceedsFee;
+      totalFees += proceedsFee;
+
+      let costOut;
+      if (effQty >= quantity - QTY_EPS) {
+        // 全部平仓：整体结转成本书，而不是 (C/Q)×q。
+        // 这一行同时消灭了浮点残留的幽灵持仓（Q ≈ 1e-15）和清仓后成本书
+        // 不归零两个 bug。
+        costOut = costBook;
+        quantity = 0;
+        costBook = 0;
+      } else {
+        costOut = (costBook / quantity) * effQty;
+        costBook -= costOut;
+        quantity -= effQty;
+      }
+
+      realized += proceeds - costOut;
+      realizedCost += costOut;
+      totalSellQuantity += effQty;
+      sellGross += t.price * effQty;
+      sellNet += proceeds;
+      soldBefore = true;
+    }
+  }
+
+  const averageCost = quantity > QTY_EPS ? costBook / quantity : 0;
+  const avgBuyPrice = totalBuyQuantity > QTY_EPS ? buyNet / totalBuyQuantity : 0;
+  const avgSellPrice = totalSellQuantity > QTY_EPS ? sellNet / totalSellQuantity : 0;
+  // 收益率 = 已落袋利润 ÷ 卖出部分的买入成本（"投进去的钱赚了多少"），
+  // 不是 ÷ 卖出金额。还没卖过时为 null。
+  const realizedRate = realizedCost > MONEY_EPS ? realized / realizedCost : null;
+
+  return {
+    code, name: latestName,
+    displayTitle: title,
+    displaySubtitle: latestName ? code : null,
+    quantity, costBook, averageCost, realized,
+    totalBuyQuantity, totalSellQuantity, totalFees,
+    buyGross, buyNet, sellGross, sellNet, avgBuyPrice, avgSellPrice,
+    realizedCost, realizedRate, multiRound,
+    tradeCount, lastTradeDate, diagnostics,
+    hasPosition: quantity > QTY_EPS,
+  };
+}
+
+// 按标的代码分组计算全部持仓，返回结果按代码升序排列。
+export function positions(trades) {
+  const groups = new Map();
+  for (const t of trades) {
+    if (!groups.has(t.code)) groups.set(t.code, []);
+    groups.get(t.code).push(t);
+  }
+  return [...groups.keys()].sort().map((code) => position(code, groups.get(code)));
+}
+
+/* 浮动盈亏 = 市值 − 成本书。
+ *
+ * 不扣减假想的卖出手续费：手续费只在真实成交时才发生，预扣会让"现价等于成本价"
+ * 显示成亏损，与券商 App 的口径不一致。 */
+export const unrealized = (p, cur) => cur * p.quantity - p.costBook;
+export const marketValue = (p, cur) => cur * p.quantity;
+export const totalProfit = (p, cur) => p.realized + unrealized(p, cur);
+export const unrealizedRate = (p, cur) =>
+  p.costBook <= MONEY_EPS ? null : unrealized(p, cur) / p.costBook;
+
+/* ── 格式化 ───────────────────────────────────────────────── */
+
+const LOC = 'zh-CN';
+
+function num(v, minFd, maxFd) {
+  if (!Number.isFinite(v)) return '—';
+  return (v === 0 ? 0 : v).toLocaleString(LOC, {
+    minimumFractionDigits: minFd, maximumFractionDigits: maxFd,
+  });
+}
+
+// 数量：最多 8 位小数。币种可以是 0.00042137 个，绝不能截断成 0.00。
+export const fmtQty = (v) => num(v, 0, 8);
+export const fmtPrice = (v) => num(v, 0, 6);
+export const fmtMoney = (v) => num(v, 2, 2);
+
+export function fmtSignedMoney(v) {
+  const t = fmtMoney(Math.abs(v));
+  if (v > MONEY_EPS) return '+' + t;
+  if (v < -MONEY_EPS) return '−' + t;
+  return t;
+}
+
+export function fmtPercent(frac) {
+  return num(frac * 100, 0, 4) + '%';
+}
+
+export function fmtSignedPercent(frac) {
+  const t = num(Math.abs(frac) * 100, 2, 2);
+  if (frac > 1e-12) return '+' + t + '%';
+  if (frac < -1e-12) return '−' + t + '%';
+  return t + '%';
+}
+
+/* 用于回填输入框的数字串：无千位分隔、不截断精度、可被 Number() 原样读回。
+ *
+ * 绝不能用 fmtPrice/fmtQty 回填输入框：它们带千位分隔（Number("1,650") 是 NaN，
+ * 会导致编辑 1000 以上的记录时保存按钮变灰），且 fmtPrice 只保留 6 位小数
+ * （会把 0.00042137 悄悄截成 0.000421）。这是 iOS 版曾经的真实 bug。 */
+export function fmtEditable(v) {
+  if (!Number.isFinite(v)) return '';
+  return String(v);
+}
+
+export const fmtDate = (d) =>
+  new Date(d).toLocaleDateString(LOC, { year: 'numeric', month: '2-digit', day: '2-digit' });
+
+export function fmtRelative(d) {
+  const diff = Date.now() - new Date(d).getTime();
+  const day = 86400000;
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
+  if (diff < day) return `${Math.floor(diff / 3600000)} 小时前`;
+  if (diff < day * 30) return `${Math.floor(diff / day)} 天前`;
+  return fmtDate(d);
+}
+
+/* ── 日期区间 ─────────────────────────────────────────────── */
+
+/* 边界一律按本地日历取整到天。结束日取次日零点作为开区间上界，这样"结束日当天
+ * 23:59 的交易"也在范围内——用户选到 9/5，心里想的是"含 9/5 一整天"。
+ * 直接用 UTC 会让东八区用户的区间整体偏移 8 小时。 */
+export function inDateRange(dateStr, start, end) {
+  const t = new Date(dateStr).getTime();
+  if (start) {
+    const lo = new Date(start + 'T00:00:00').getTime();
+    if (t < lo) return false;
+  }
+  if (end) {
+    const hi = new Date(end + 'T00:00:00').getTime() + 86400000;
+    if (t >= hi) return false;
+  }
+  return true;
+}
+
+/* ── 备份编解码 ───────────────────────────────────────────── */
+
+export const BACKUP_VERSION = '2.1';
+
+export function encodeJSON(records) {
+  return JSON.stringify(
+    {
+      version: BACKUP_VERSION,
+      exportDate: new Date().toISOString(),
+      records: sortTrades(records).map((r) => ({
+        id: r.id, code: r.code,
+        ...(r.name ? { name: r.name } : {}),
+        side: r.side, price: r.price, quantity: r.quantity,
+        feeRate: r.feeRate, date: r.date, createdAt: r.createdAt,
+        ...(r.note ? { note: r.note } : {}),
+        ...(r.archiveId ? { archiveId: r.archiveId, archivedAt: r.archivedAt } : {}),
+      })),
+    },
+    null, 2
+  );
+}
+
+// CSV 开头加 UTF-8 BOM，否则 Excel 在中文环境下会把标的和备注显示成乱码。
+export function encodeCSV(records) {
+  const esc = (f) => {
+    const s = String(f ?? '');
+    return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  let out = '﻿' + 'id,code,name,side,price,quantity,feeRate,date,note,archiveId,archivedAt\r\n';
+  for (const r of sortTrades(records)) {
+    out += [r.id, r.code, r.name ?? '', r.side, r.price, r.quantity, r.feeRate, r.date, r.note ?? '',
+      r.archiveId ?? '', r.archivedAt ?? '']
+      .map(esc).join(',') + '\r\n';
+  }
+  return out;
+}
+
+// 由内容派生的确定性 id：让同一个文件重复导入是幂等的。
+// 随机 id 会导致每次导入都整份重复。
+function derivedId(seed) {
+  let h1 = 0x811c9dc5, h2 = 0x01000193;
+  for (let i = 0; i < seed.length; i++) {
+    h1 = Math.imul(h1 ^ seed.charCodeAt(i), 16777619) >>> 0;
+    h2 = Math.imul(h2 + seed.charCodeAt(i) * (i + 1), 2246822519) >>> 0;
+  }
+  return 'd-' + h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0');
+}
+
+const contentKey = (r) =>
+  [r.code, r.name ?? '', r.side, r.price, r.quantity, r.feeRate,
+   Math.round(new Date(r.date).getTime() / 1000)].join('|');
+
+/* 解析备份文件。按版本号派发：2.x 走流水格式，1.x 走 PRD §4.1 的配对格式。
+ * v2.0 用 symbol 字段，v2.1 用 code + name，两个都认。 */
+export function decodeBackup(text) {
+  let obj;
+  try { obj = JSON.parse(text); }
+  catch { throw new Error('文件不是有效的 JSON。'); }
+
+  const rawList = Array.isArray(obj) ? obj : obj?.records;
+  if (!Array.isArray(rawList) || rawList.length === 0)
+    throw new Error('文件里没有任何交易记录。');
+
+  const version = typeof obj?.version === 'string' ? obj.version : '';
+  const out = [];
+
+  // v1.0 配对格式：每条拆成买/卖两腿，未平仓的只出买腿。
+  // 两条腿不能共用原 id，用内容哈希派生，保证重复导入幂等。
+  if (version.startsWith('1.')) {
+    for (const r of rawList) {
+      const code = normalizeCode(r.symbol ?? r.code ?? '');
+      const name = normalizeName(r.name);
+      const fee = Number(r.feeRate ?? 0);
+      const date = r.date;
+      const seed = (r.id ?? `${code}|${date}`) + '';
+      if (Number(r.buyQuantity) > 0) {
+        out.push({
+          id: derivedId(seed + '#buy'), code, name, side: 'buy',
+          price: Number(r.buyPrice ?? 0), quantity: Number(r.buyQuantity),
+          feeRate: fee, date, createdAt: date, note: '由 v1.0 备份导入',
+        });
+      }
+      if (Number(r.sellQuantity) > 0 && r.sellPrice != null) {
+        out.push({
+          id: derivedId(seed + '#sell'), code, name, side: 'sell',
+          price: Number(r.sellPrice), quantity: Number(r.sellQuantity),
+          feeRate: fee, date, createdAt: date, note: '由 v1.0 备份导入',
+        });
+      }
+    }
+    if (!out.length) throw new Error('文件里没有任何交易记录。');
+    return out;
+  }
+
+  for (const r of rawList) {
+    const code = normalizeCode(r.code ?? r.symbol ?? '');
+    const name = normalizeName(r.name);
+    const side = String(r.side ?? '').toLowerCase() === 'sell' ? 'sell' : 'buy';
+    const rec = {
+      id: r.id, code, name, side,
+      price: Number(r.price ?? 0),
+      quantity: Number(r.quantity ?? 0),
+      feeRate: Number(r.feeRate ?? 0),
+      date: r.date,
+      createdAt: r.createdAt ?? r.date,
+      note: r.note ?? null,
+    };
+    // 已存为历史的一轮：两个字段成对出现，缺一个就当作进行中
+    if (r.archiveId && r.archivedAt) { rec.archiveId = String(r.archiveId); rec.archivedAt = r.archivedAt; }
+    // id 是管道，不是数据。缺失时由内容派生。
+    if (!rec.id) rec.id = derivedId(contentKey(rec));
+    out.push(rec);
+  }
+  return out;
+}
+
+/* ── 导入合并计划 ─────────────────────────────────────────── */
+
+/* 先算出来给用户确认，确认后才落库。
+ * 「重复」与「冲突」分开计数：混在一起会掩盖"真数据没进来"这件事。 */
+export function planMerge(incoming, existing, overwriteConflicts = false) {
+  const byId = new Map(existing.map((r) => [r.id, r]));
+  const toInsert = [], toOverwrite = [], duplicates = [], conflicts = [], invalid = [];
+  const seen = new Set();
+
+  incoming.forEach((rec, index) => {
+    const bad = validationFailure(rec);
+    if (bad) { invalid.push({ index, title: displayTitle(rec), reason: bad }); return; }
+
+    if (seen.has(rec.id)) { duplicates.push(rec.id); return; } // 文件内重复：首条胜出
+    seen.add(rec.id);
+
+    const local = byId.get(rec.id);
+    if (!local) {
+      // 内容相同但 id 不同的不去重：同一天两笔同价买入是真实存在的。
+      toInsert.push(rec);
+    } else if (contentKey(local) === contentKey(rec)) {
+      duplicates.push(rec.id);
+    } else {
+      conflicts.push(rec.id);
+      if (overwriteConflicts) toOverwrite.push(rec);
+    }
+  });
+
+  const parts = [`导入 ${toInsert.length}`];
+  if (toOverwrite.length) parts.push(`覆盖 ${toOverwrite.length}`);
+  if (duplicates.length) parts.push(`跳过重复 ${duplicates.length}`);
+  if (conflicts.length) parts.push(`冲突 ${conflicts.length}`);
+  if (invalid.length) parts.push(`无效 ${invalid.length}`);
+
+  return {
+    toInsert, toOverwrite, duplicates, conflicts, invalid,
+    changesAnything: toInsert.length > 0 || toOverwrite.length > 0,
+    summary: parts.join(' · '),
+  };
+}
+
+
+// ── 命名空间：把核心函数收进 C，与 app 代码保持一致 ──────
+const C = {
+  QTY_EPS, MONEY_EPS, FEE_RATE_MAX,
+  normalizeCode, normalizeName, displayTitle,
+  validationFailure, isValid, feeRateLooksSuspicious,
+  sortTrades, position, positions,
+  unrealized, marketValue, totalProfit, unrealizedRate,
+  fmtQty, fmtPrice, fmtMoney, fmtSignedMoney,
+  fmtPercent, fmtSignedPercent, fmtEditable,
+  fmtDate, fmtRelative, inDateRange,
+  BACKUP_VERSION, encodeJSON, encodeCSV, decodeBackup, planMerge,
+};
+
+// ── app ──
+/* SwingCalc 桌面版 —— 界面逻辑。
+ * 界面结构、文案、数字口径与 iOS 版一一对应。
+ */
+
+
+/* ── 存储：本地服务器（桌面版）或 localStorage（直接打开 HTML） ── */
+
+const KEY = 'swingcalc.v1';
+const state = { trades: [], quotes: {}, fee: 0.0003, tab: 0 };
+
+// 判断是否通过本地服务器访问：只在 localhost/127.0.0.1 上才调用 /api/data
+const IS_SERVER = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+function _applyData(d) {
+  if (!d || typeof d !== 'object') return;
+  state.trades = Array.isArray(d.trades) ? d.trades : [];
+  state.quotes = d.quotes && typeof d.quotes === 'object' ? d.quotes : {};
+  state.fee = Number.isFinite(d.fee) ? d.fee : 0.0003;
+}
+
+async function load() {
+  if (IS_SERVER) {
+    try {
+      const r = await fetch('/api/data');
+      if (r.ok) { const d = await r.json(); _applyData(d); return; }
+    } catch { /* 服务器未响应，降级到 localStorage */ }
+  }
+  // 降级：localStorage（直接双击 HTML 文件时走这里）
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) _applyData(JSON.parse(raw));
+  } catch { /* 私密模式或存储被清理：以空数据启动 */ }
+}
+
+let saveWarned = false;
+function save() {
+  const payload = JSON.stringify({ trades: state.trades, quotes: state.quotes, fee: state.fee });
+  if (IS_SERVER) {
+    fetch('/api/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload })
+      .catch(() => {
+        if (!saveWarned) { saveWarned = true; toast('无法写入数据文件，请检查程序是否正常运行'); }
+      });
+    return;
+  }
+  // 降级：localStorage
+  try {
+    localStorage.setItem(KEY, payload);
+  } catch {
+    if (!saveWarned) { saveWarned = true; toast('无法保存到这台设备，请勿使用无痕模式'); }
+  }
+}
+
+const uid = () =>
+  (crypto?.randomUUID?.() ?? 'r-' + Date.now().toString(36) + Math.random().toString(36).slice(2));
+
+/* ── 工具 ─────────────────────────────────────────────────── */
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const cls = (v) => (v > C.MONEY_EPS ? 'up' : v < -C.MONEY_EPS ? 'down' : 'muted');
+// 关键数字卡片：持仓页汇总和标的详情共用
+const kpi = (k, v, s, c = '') =>
+  `<div class="kpi"><div class="k">${k}</div><div class="v mono ${c}">${v}</div><div class="s mono">${s}</div></div>`;
+
+// 本地日历的 yyyy-mm-dd，给 <input type="date"> 和区间筛选用
+const ymd = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const todayStr = () => ymd(new Date());
+
+let toastTimer;
+function toast(msg) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), 2600);
+}
+
+/* ── 弹层 ─────────────────────────────────────────────────── */
+
+function openSheet(html, onMount) {
+  $('sheet-in').innerHTML = html;
+  $('sheet').classList.add('on');
+  document.body.style.overflow = 'hidden';
+  onMount?.();
+}
+function closeSheet() {
+  $('sheet').classList.remove('on');
+  document.body.style.overflow = '';
+}
+$('sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') closeSheet(); });
+
+/* ── 持仓页 ───────────────────────────────────────────────── */
+
+// 持仓页当前显示「当前波段」还是「历史」
+const posView = { mode: 'cur' };
+
+/* 进行中 = 没有 archiveId 的交易，按代码合并计算。
+ * 每个 archiveId 是一轮已存为历史的波段，单独计算、互不影响——这样同一只标的
+ * 做完一轮存为历史后，再买入就从零开始新一轮。 */
+function rounds() {
+  const cur = C.positions(state.trades.filter((t) => !t.archiveId));
+  const groups = new Map();
+  for (const t of state.trades) {
+    if (!t.archiveId) continue;
+    if (!groups.has(t.archiveId)) groups.set(t.archiveId, []);
+    groups.get(t.archiveId).push(t);
+  }
+  const hist = [...groups].map(([aid, ts]) => {
+    const sorted = C.sortTrades(ts);
+    return { ...C.position(sorted[0].code, ts), archiveId: aid,
+      archivedAt: ts[0].archivedAt, firstDate: sorted[0].date };
+  }).sort((x, y) => new Date(y.archivedAt) - new Date(x.archivedAt));
+  return { cur, hist };
+}
+
+function renderPositions() {
+  const el = $('v-pos');
+  if (!state.trades.length) {
+    el.innerHTML = `<div class="empty">
+      <div class="ico">📋</div><h3>还没有交易记录</h3>
+      <p>点右上角 + 添加第一笔买入，<br>或到「设置」导入备份文件。</p></div>`;
+    return;
+  }
+
+  const { cur, hist } = rounds();
+  if (!hist.length) posView.mode = 'cur';
+
+  let h = '';
+  if (hist.length) {
+    h += `<div class="sec"><div class="seg" id="posmode">
+      <button data-v="cur" class="${posView.mode === 'cur' ? 'on' : ''}">当前波段（${cur.length}）</button>
+      <button data-v="hist" class="${posView.mode === 'hist' ? 'on' : ''}">已归档（${hist.length}）</button>
+    </div></div>`;
+  }
+  h += posView.mode === 'hist' ? histHtml(hist) : curHtml(cur);
+  el.innerHTML = h;
+
+  $('posmode')?.querySelectorAll('button').forEach((b) =>
+    b.addEventListener('click', () => { posView.mode = b.dataset.v; renderPositions(); }));
+  el.querySelectorAll('.pos').forEach((b) =>
+    b.addEventListener('click', () => openDetail(b.dataset.code, b.dataset.aid || null)));
+}
+
+function curHtml(ps) {
+  if (!ps.length) {
+    return `<div class="empty" style="padding:48px 24px"><div class="ico">🌱</div>
+      <h3>当前没有进行中的波段</h3>
+      <p>做完的波段都在「已归档」里。<br>点右上角 + 添加买入，开始新一轮。</p></div>`;
+  }
+  const totalCost = ps.reduce((s, p) => s + p.costBook, 0);
+  const totalReal = ps.reduce((s, p) => s + p.realized, 0);
+  let totalUnreal = 0;
+  for (const p of ps) {
+    const q = state.quotes[p.code];
+    if (p.hasPosition && q != null) totalUnreal += C.unrealized(p, q.price);
+  }
+  const diags = ps.flatMap((p) => p.diagnostics);
+
+  // 持仓在前、已清仓在后；组内按落袋利润降序
+  const sorted = [...ps].sort((a, b) =>
+    a.hasPosition !== b.hasPosition ? (a.hasPosition ? -1 : 1) : b.realized - a.realized);
+
+  const hasQuote = ps.some((p) => p.hasPosition && state.quotes[p.code] != null);
+  const tp = totalReal + totalUnreal;
+  let h = `<div class="sec"><div class="sec-h">汇总</div><div class="kpis">
+    ${kpi('已落袋利润', C.fmtSignedMoney(totalReal), `${ps.length} 个波段`, cls(totalReal))}
+    ${kpi('持仓成本', C.fmtMoney(totalCost), `其中 ${ps.filter((p) => p.hasPosition).length} 个还有持仓`)}
+    ${kpi('浮动盈亏', hasQuote ? C.fmtSignedMoney(totalUnreal) : '—', hasQuote ? '只算填了现价的波段' : '点进波段填现价后显示', hasQuote ? cls(totalUnreal) : 'faint')}
+    ${kpi('总盈亏', hasQuote ? C.fmtSignedMoney(tp) : '—', '落袋 + 浮动', hasQuote ? cls(tp) : 'faint')}
+  </div></div>`;
+
+  if (diags.length) {
+    h += `<div class="sec"><div class="warnbox"><b>⚠️ 有 ${diags.length} 条记录存在问题</b>`;
+    for (const d of diags.slice(0, 5)) h += `<div>${esc(diagMsg(d))}</div>`;
+    if (diags.length > 5) h += `<div class="faint">还有 ${diags.length - 5} 条…</div>`;
+    h += `</div></div>`;
+  }
+
+  h += `<div class="sec"><div class="sec-h">进行中的波段</div><div class="posgrid">`;
+  for (const p of sorted) {
+    const q = state.quotes[p.code];
+    h += `<button class="pos" data-code="${esc(p.code)}" data-aid="">
+      <div class="pos-top">
+        <div>
+          <div class="pos-name">${esc(p.displayTitle)}${p.diagnostics.length ? ' <span style="color:var(--warn)">⚠️</span>' : ''}</div>
+          ${p.displaySubtitle ? `<div class="pos-code mono">${esc(p.displaySubtitle)}</div>` : ''}
+        </div>
+        <div class="pos-qty mono">${p.hasPosition ? C.fmtQty(p.quantity) + ' 股' : '已清仓'}</div>
+      </div>
+      <div class="pos-avg"><span class="k">平均成本</span>
+        <span class="v mono">${p.hasPosition ? C.fmtPrice(p.averageCost) : '<span class="faint">—</span>'}</span></div>`;
+    if (p.hasPosition && q != null) {
+      const u = C.unrealized(p, q.price);
+      h += `<div class="pos-line"><span class="k mono">现价 ${C.fmtPrice(q.price)}</span>
+        <span class="mono ${cls(u)}">浮动 ${C.fmtSignedMoney(u)}</span></div>`;
+    }
+    h += `<div class="pos-line"><span class="k">已落袋</span>
+      <span class="mono ${cls(p.realized)}">${C.fmtSignedMoney(p.realized)}${p.realizedRate != null ? `（${C.fmtSignedPercent(p.realizedRate)}）` : ''}</span></div>
+      <span class="chev">›</span></button>`;
+  }
+  h += `</div></div>`;
+  return h;
+}
+
+function histHtml(hist) {
+  const total = hist.reduce((s, p) => s + p.realized, 0);
+  const cost = hist.reduce((s, p) => s + p.realizedCost, 0);
+  let h = `<div class="sec"><div class="sec-h">已归档汇总</div><div class="kpis">
+    ${kpi('累计落袋利润', C.fmtSignedMoney(total), '所有已归档波段相加', cls(total))}
+    ${kpi('整体收益率', cost > C.MONEY_EPS ? C.fmtSignedPercent(total / cost) : '—', `卖出部分成本 ${C.fmtMoney(cost)}`, cost > C.MONEY_EPS ? cls(total) : 'faint')}
+    ${kpi('已完成的波段', hist.length + ' 轮', '')}
+  </div></div>`;
+  h += `<div class="sec"><div class="sec-h">已归档的波段（最近归档的在最前）</div><div class="posgrid">`;
+  for (const p of hist) {
+    h += `<button class="pos" data-code="${esc(p.code)}" data-aid="${esc(p.archiveId)}">
+      <div class="pos-top">
+        <div>
+          <div class="pos-name">${esc(p.displayTitle)}${p.diagnostics.length ? ' <span style="color:var(--warn)">⚠️</span>' : ''}</div>
+          ${p.displaySubtitle ? `<div class="pos-code mono">${esc(p.displaySubtitle)}</div>` : ''}
+        </div>
+        <div class="pos-qty">${C.fmtDate(p.firstDate)} – ${C.fmtDate(p.lastTradeDate ?? p.firstDate)}</div>
+      </div>
+      <div class="pos-avg"><span class="k">落袋利润</span>
+        <span class="v mono ${cls(p.realized)}">${C.fmtSignedMoney(p.realized)}</span></div>
+      <div class="pos-line"><span class="k">收益率</span>
+        <span class="mono ${cls(p.realized)}">${p.realizedRate != null ? C.fmtSignedPercent(p.realizedRate) : '—'}</span></div>
+      ${p.hasPosition ? `<div class="pos-line"><span class="k">归档时剩余</span><span class="mono faint">${C.fmtQty(p.quantity)} 股未卖出</span></div>` : ''}
+      <span class="chev">›</span></button>`;
+  }
+  return h + `</div></div>`;
+}
+
+function diagMsg(d) {
+  if (d.kind === 'invalid') return `${d.title}：记录已跳过（${d.reason}）`;
+  if (d.available <= 0)
+    return `${d.title}：无持仓时卖出 ${C.fmtQty(d.requested)}，该笔未计入利润`;
+  return `${d.title}：卖出 ${C.fmtQty(d.requested)} 超过当时持仓 ${C.fmtQty(d.available)}，超出部分已忽略`;
+}
+
+/* ── 标的详情 ─────────────────────────────────────────────── */
+
+// aid 为空 = 当前这一轮；否则打开那一轮历史波段
+function openDetail(code, aid = null) {
+  const recs = aid
+    ? state.trades.filter((t) => t.archiveId === aid)
+    : state.trades.filter((t) => t.code === code && !t.archiveId);
+  if (!recs.length) { closeSheet(); renderAll(); return; }
+  const p = C.position(code, recs);
+  const q = state.quotes[code];
+  const flagged = new Set(p.diagnostics.map((d) => d.recordId));
+  const sorted = C.sortTrades(recs);
+
+  let h = `<div class="sheet-h"><button id="dx">返回</button>
+    <h2>${esc(p.displayTitle)}${aid ? '<span class="faint" style="font-weight:400"> · 已归档</span>' : ''}</h2>
+    ${aid ? '<span style="min-width:48px"></span>' : '<button id="dadd">添加</button>'}</div>
+    <div class="sheet-b"><div class="detail">`;
+  if (aid) {
+    h += `<div class="sec"><div class="histbar">📁 这一轮已在 ${C.fmtDate(recs[0].archivedAt)} 归档，不会和之后的新交易混在一起计算。</div></div>`;
+  }
+
+  // 关键数字：一眼看到结果，不用往下翻
+  h += `<div class="sec"><div class="kpis">`;
+  h += kpi('已落袋利润', C.fmtSignedMoney(p.realized), `手续费合计 ${C.fmtMoney(p.totalFees)}`, cls(p.realized));
+  h += kpi('收益率', p.realizedRate != null ? C.fmtSignedPercent(p.realizedRate) : '—',
+    p.realizedRate != null ? `卖出部分成本 ${C.fmtMoney(p.realizedCost)}` : '还没有卖出',
+    p.realizedRate != null ? cls(p.realized) : 'faint');
+  h += kpi('剩余持仓', p.hasPosition ? C.fmtQty(p.quantity) : '已清仓',
+    p.hasPosition ? `持仓成本 ${C.fmtMoney(p.costBook)}` : `累计买入 ${C.fmtQty(p.totalBuyQuantity)}`);
+  h += kpi('持仓均价', p.hasPosition ? C.fmtPrice(p.averageCost) : '—',
+    p.hasPosition ? '含买入手续费' : '清仓后无持仓', p.hasPosition ? '' : 'faint');
+  h += `</div>`;
+  if (p.totalSellQuantity > C.QTY_EPS) {
+    if (!p.multiRound) {
+      const d = p.avgSellPrice - p.avgBuyPrice;
+      h += `<div class="spread">卖出均价 <b class="mono">${C.fmtPrice(p.avgSellPrice)}</b> − 买入均价 <b class="mono">${C.fmtPrice(p.avgBuyPrice)}</b>
+        = 每股 <b class="mono ${cls(d)}">${signedPrice(d)}</b>，× 卖出 <b class="mono">${C.fmtQty(p.totalSellQuantity)}</b> 股 = 利润 <b class="mono ${cls(p.realized)}">${C.fmtSignedMoney(p.realized)}</b></div>`;
+    } else {
+      h += `<div class="spread">这一轮里有卖出后又买入的情况。利润按每次卖出时的持仓均价逐笔计算，
+        所以不等于「卖出均价 − 买入均价」× 数量，这是正常的。</div>`;
+    }
+  }
+  h += `</div>`;
+
+  if (p.diagnostics.length) {
+    h += `<div class="sec"><div class="warnbox"><b>⚠️ 有 ${p.diagnostics.length} 条记录存在问题</b>`;
+    for (const d of p.diagnostics.slice(0, 5)) h += `<div>${esc(diagMsg(d))}</div>`;
+    h += `</div></div>`;
+  }
+
+  // 买卖对照表：左买右卖，底部合计行对应表格里标黄的格子
+  h += `<div class="sec ledgers">`;
+  h += ledgerTable('buy', sorted.filter((t) => t.side === 'buy'), flagged, {
+    qty: p.totalBuyQuantity, avg: p.avgBuyPrice, gross: p.buyGross,
+    fee: p.buyNet - p.buyGross, net: p.buyNet,
+  });
+  h += ledgerTable('sell', sorted.filter((t) => t.side !== 'buy'), flagged, {
+    qty: p.totalSellQuantity, avg: p.avgSellPrice, gross: p.sellGross,
+    fee: p.sellGross - p.sellNet, net: p.sellNet,
+  });
+  h += `</div><div class="sec-f" style="margin-top:-14px; margin-bottom:22px">点击任意一行可以修改或删除。实付金额 = 成交额 + 税费，到手金额 = 成交额 − 税费。</div>`;
+
+  if (p.hasPosition && !aid) {
+    h += `<div class="sec"><div class="sec-h">浮动盈亏</div><div class="card">
+      <div class="feerow"><label for="cur">现价</label>
+      <input id="cur" type="text" inputmode="decimal" placeholder="手动填写"
+        value="${q != null ? esc(C.fmtEditable(q.price)) : ''}"></div>
+      <div id="curout"></div></div>
+      <div class="sec-f">${q != null ? `报价为手动填写，更新于 ${C.fmtRelative(q.at)}。` : '填入现价即可看到浮动盈亏。'}应用不联网获取行情。</div></div>`;
+  }
+
+  if (!aid) {
+    h += `<div class="sec"><button class="ghostbtn" id="darch">📁 归档</button>
+      <div class="sec-f">这一轮做完了就可以归档。归档后数据不会删除，可以在「持仓 → 已归档」里查看。之后再买入 ${esc(p.displayTitle)}，会从零开始算新的一轮。</div></div>`;
+  } else {
+    h += `<div class="sec"><button class="ghostbtn" id="dunarch">取消归档</button>
+      <div class="sec-f">归档错了可以取消，取消后这一轮会重新出现在「当前波段」里。</div></div>`;
+  }
+
+  h += `</div></div>`;
+
+  openSheet(h, () => {
+    $('dx').onclick = closeSheet;
+    $('dadd')?.addEventListener('click', () => openEditor(null, { code, name: p.name }));
+    $('darch')?.addEventListener('click', () => archiveRound(code, p, recs));
+    $('dunarch')?.addEventListener('click', () => unarchiveRound(aid, p, recs));
+    const cur = $('cur');
+    if (cur) {
+      const paint = () => {
+        const v = Number(cur.value.trim());
+        const out = $('curout');
+        if (!cur.value.trim() || !Number.isFinite(v) || v <= 0) { out.innerHTML = ''; return; }
+        const u = C.unrealized(p, v), tp = C.totalProfit(p, v), r = C.unrealizedRate(p, v);
+        out.innerHTML =
+          `<div class="row"><span class="k">市值</span><span class="v mono">${C.fmtMoney(C.marketValue(p, v))}</span></div>
+           <div class="row big"><span class="k">浮动盈亏</span><span class="v mono ${cls(u)}">${C.fmtSignedMoney(u)}</span></div>` +
+          (r != null ? `<div class="row"><span class="k">浮动收益率</span><span class="v mono ${cls(u)}">${C.fmtSignedPercent(r)}</span></div>` : '') +
+          `<div class="row big"><span class="k">总盈亏（落袋 + 浮动）</span><span class="v mono ${cls(tp)}">${C.fmtSignedMoney(tp)}</span></div>`;
+      };
+      paint();
+      cur.addEventListener('input', () => {
+        paint();
+        const s = cur.value.trim();
+        // 清空 = 删除报价。否则界面上价格已删掉，持仓页却还在用旧价算浮盈。
+        if (!s) { if (state.quotes[code]) { delete state.quotes[code]; save(); renderPositions(); } return; }
+        const v = Number(s);
+        if (!Number.isFinite(v) || v <= 0) return;
+        // 值没变就不动时间戳，否则光是打开页面就把"更新于"刷成刚刚。
+        if (state.quotes[code]?.price === v) return;
+        state.quotes[code] = { price: v, at: new Date().toISOString() };
+        save(); renderPositions();
+      });
+    }
+    document.querySelectorAll('tr.lr').forEach((r) =>
+      r.addEventListener('click', () => {
+        const t = state.trades.find((x) => x.id === r.dataset.id);
+        if (t) openEditor(t);
+      }));
+  });
+}
+
+function archiveRound(code, p, recs) {
+  const title = p.displayTitle;
+  const left = p.hasPosition
+    ? `\n· 还剩 ${C.fmtQty(p.quantity)} 股没卖，这部分不会带到新一轮` : '';
+  if (!confirm(`把「${title}」这一轮波段归档？\n\n· 共 ${recs.length} 笔交易，数据不会删除\n· 之后再添加${title}，会从零开始算新一轮${left}`)) return;
+  const aid = uid(), at = new Date().toISOString();
+  for (const t of state.trades) {
+    if (t.code === code && !t.archiveId) { t.archiveId = aid; t.archivedAt = at; }
+  }
+  // 现价跟着这一轮走：新一轮开始时不该沿用旧报价算浮盈
+  delete state.quotes[code];
+  posView.mode = 'hist';
+  save(); closeSheet(); renderAll();
+  toast('已归档');
+}
+
+function unarchiveRound(aid, p, recs) {
+  const codes = new Set(recs.map((t) => t.code));
+  // 已经有进行中的一轮时不能恢复：两轮会按同一个代码合并，利润和均价全部变样
+  if (state.trades.some((t) => !t.archiveId && codes.has(t.code))) {
+    alert(`「${p.displayTitle}」现在已经有进行中的一轮，不能取消归档，否则两轮会混在一起计算。\n\n如果一定要取消，请先把当前这一轮也归档。`);
+    return;
+  }
+  if (!confirm(`取消归档，把这一轮放回「当前波段」？`)) return;
+  for (const t of state.trades) {
+    if (t.archiveId === aid) { delete t.archiveId; delete t.archivedAt; }
+  }
+  posView.mode = 'cur';
+  save(); closeSheet(); renderAll();
+  toast('已取消归档');
+}
+
+// 每股价差：价格精度（最多 6 位小数）带正负号，不能用 fmtSignedMoney（只有 2 位）。
+function signedPrice(v) {
+  const t = C.fmtPrice(Math.abs(v));
+  return v > 1e-12 ? '+' + t : v < -1e-12 ? '−' + t : t;
+}
+
+/* 买卖对照表。单行数字按原始记录算；合计行取引擎结果——无效记录被跳过、
+ * 超卖被截断时，合计与逐行相加会不同，这些行带 ⚠️ 并在上方警告里说明。 */
+function ledgerTable(side, rows, flagged, tot) {
+  const buy = side === 'buy';
+  let h = `<div><div class="ledger-h"><span class="badge ${buy ? 'b' : 's'}">${buy ? '买入' : '卖出'}</span>
+    <span class="faint">${rows.length} 笔</span></div>
+    <div class="card tblwrap"><table class="lg"><thead><tr>
+      <th>日期</th><th>数量</th><th>单价</th><th>成交额</th><th>税费</th><th>${buy ? '实付金额' : '到手金额'}</th>
+    </tr></thead><tbody>`;
+  if (!rows.length) h += `<tr class="empty-row"><td colspan="6">暂无${buy ? '买入' : '卖出'}记录</td></tr>`;
+  for (const t of rows) {
+    const gross = t.price * t.quantity, fee = gross * t.feeRate;
+    h += `<tr class="lr" data-id="${esc(t.id)}" title="${esc(t.note || '点击修改')}">
+      <td>${C.fmtDate(t.date)}${flagged.has(t.id) ? ' <span style="color:var(--warn)">⚠️</span>' : ''}</td>
+      <td class="mono">${C.fmtQty(t.quantity)}</td>
+      <td class="mono">${C.fmtPrice(t.price)}</td>
+      <td class="mono">${C.fmtMoney(gross)}</td>
+      <td class="mono">${C.fmtMoney(fee)}</td>
+      <td class="mono">${C.fmtMoney(buy ? gross + fee : gross - fee)}</td></tr>`;
+  }
+  h += `</tbody>`;
+  if (rows.length) {
+    h += `<tfoot><tr><td>合计</td>
+      <td class="mono"><span class="hl">${C.fmtQty(tot.qty)}</span></td>
+      <td class="mono"><span class="hl" title="${buy ? '买入' : '卖出'}均价（含税费）">${tot.qty > C.QTY_EPS ? C.fmtPrice(tot.avg) : '—'}</span></td>
+      <td class="mono">${C.fmtMoney(tot.gross)}</td>
+      <td class="mono">${C.fmtMoney(tot.fee)}</td>
+      <td class="mono">${C.fmtMoney(tot.net)}</td></tr>
+      <tr><td colspan="6" style="font-weight:400; font-size:12.5px; color:var(--ink-3); border-top:none; padding-top:0">
+        单价一栏的合计是${buy ? '买入' : '卖出'}均价 = ${buy ? '实付' : '到手'}金额合计 ÷ 数量合计</td></tr></tfoot>`;
+  }
+  return h + `</table></div></div>`;
+}
+
+/* ── 流水行 ───────────────────────────────────────────────── */
+
+function txRow(t, flagged, showCode) {
+  const amt = t.price * t.quantity;
+  return `<button class="tx" data-id="${esc(t.id)}">
+    <span class="badge ${t.side === 'buy' ? 'b' : 's'}">${t.side === 'buy' ? '买入' : '卖出'}</span>
+    <span class="tx-mid">
+      <span class="tx-t">${showCode ? `<b>${esc(C.displayTitle(t))}</b>${t.name ? `<span class="faint mono" style="font-size:12px">${esc(t.code)}</span>` : ''}` : ''}
+        <span class="mono" style="${showCode ? 'font-size:13px;color:var(--ink-2)' : ''}">${C.fmtPrice(t.price)} × ${C.fmtQty(t.quantity)}</span></span>
+      <span class="tx-sub">${C.fmtDate(t.date)}${t.archiveId ? ' <span class="tag">已归档</span>' : ''}${t.note ? ' · ' + esc(t.note) : ''}${flagged ? ' <span style="color:var(--warn)">⚠️</span>' : ''}</span>
+    </span>
+    <span class="tx-amt mono">${C.fmtMoney(amt)}</span></button>`;
+}
+
+function bindTxRows() {
+  document.querySelectorAll('.tx').forEach((b) =>
+    b.addEventListener('click', () => {
+      const t = state.trades.find((x) => x.id === b.dataset.id);
+      if (t) openEditor(t);
+    }));
+}
+
+/* ── 新增 / 编辑 ──────────────────────────────────────────── */
+
+function openEditor(editing, preset) {
+  const e = editing;
+  const h = `<div class="sheet-h">
+      <button id="ex">取消</button>
+      <h2>${e ? '编辑交易' : '添加交易'}</h2>
+      <button id="esave">保存</button></div>
+    <div class="sheet-b">
+      <div class="field"><label for="f-code">代码</label>
+        <input id="f-code" type="text" placeholder="600519.SH" autocapitalize="characters" autocorrect="off"
+          value="${esc(e ? e.code : preset?.code ?? '')}"></div>
+      <div class="field"><label for="f-name">名称（可留空）</label>
+        <input id="f-name" type="text" placeholder="贵州茅台" autocorrect="off"
+          value="${esc(e ? e.name ?? '' : preset?.name ?? '')}">
+        <div class="hint">同一个代码的买卖会算进同一轮波段；名称只用于显示。</div></div>
+      <div class="field"><label>方向</label>
+        <div class="seg" id="f-side">
+          <button type="button" data-v="buy" class="${!e || e.side === 'buy' ? 'on' : ''}">买入</button>
+          <button type="button" data-v="sell" class="${e?.side === 'sell' ? 'on' : ''}">卖出</button>
+        </div></div>
+      <div class="field"><label for="f-price">单价</label>
+        <input id="f-price" type="text" inputmode="decimal" placeholder="0.00"
+          value="${e ? esc(C.fmtEditable(e.price)) : ''}"></div>
+      <div class="field"><label for="f-qty">数量</label>
+        <input id="f-qty" type="text" inputmode="decimal" placeholder="0"
+          value="${e ? esc(C.fmtEditable(e.quantity)) : ''}"></div>
+      <div class="field"><label for="f-date">日期</label>
+        <input id="f-date" type="date" value="${e ? new Date(e.date).toISOString().slice(0, 10) : todayStr()}"></div>
+      <div class="field"><label for="f-fee">费率</label>
+        <div class="suffix"><input id="f-fee" type="text" inputmode="decimal" placeholder="0.03"
+          value="${esc(C.fmtEditable((e ? e.feeRate : state.fee) * 100))}"><span>%</span></div>
+        <div class="hint" id="f-feehint">买入按 (1 + 费率) 计入成本，卖出按 (1 − 费率) 计入收入。</div></div>
+      <div class="field"><label for="f-note">备注（可留空）</label>
+        <input id="f-note" type="text" value="${esc(e?.note ?? '')}"></div>
+      <div class="hint" id="f-err" style="color:var(--warn)"></div>
+      ${e ? `<button class="dangerbtn" id="edel">删除这笔交易</button>` : ''}
+    </div>`;
+
+  openSheet(h, () => {
+    let side = e?.side ?? 'buy';
+    $('f-side').querySelectorAll('button').forEach((b) =>
+      b.addEventListener('click', () => {
+        side = b.dataset.v;
+        $('f-side').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+      }));
+
+    const draft = () => ({
+      id: e?.id ?? uid(),
+      code: C.normalizeCode($('f-code').value),
+      name: C.normalizeName($('f-name').value),
+      side,
+      price: Number($('f-price').value.trim()),
+      quantity: Number($('f-qty').value.trim()),
+      feeRate: Number($('f-fee').value.trim()) / 100,
+      date: new Date($('f-date').value + 'T08:30:00').toISOString(),
+      createdAt: e?.createdAt ?? new Date().toISOString(),
+      note: $('f-note').value.trim() || null,
+      // 修改历史波段里的交易时，它仍属于那一轮
+      ...(e?.archiveId ? { archiveId: e.archiveId, archivedAt: e.archivedAt } : {}),
+    });
+
+    const check = () => {
+      const d = draft();
+      const bad = !$('f-code').value.trim() ? null : C.validationFailure(d);
+      $('f-err').textContent = bad ?? '';
+      const hint = $('f-feehint');
+      if (Number.isFinite(d.feeRate) && C.feeRateLooksSuspicious(d.feeRate)) {
+        hint.textContent = `费率为 ${C.fmtPercent(d.feeRate)}，确认不是 ${C.fmtPercent(d.feeRate / 100)}？`;
+        hint.classList.add('warn');
+      } else {
+        hint.textContent = '买入按 (1 + 费率) 计入成本，卖出按 (1 − 费率) 计入收入。';
+        hint.classList.remove('warn');
+      }
+      $('esave').disabled = !C.isValid(d);
+    };
+    ['f-code', 'f-name', 'f-price', 'f-qty', 'f-fee', 'f-date'].forEach((id) =>
+      $(id).addEventListener('input', check));
+    $('f-side').addEventListener('click', check);
+    check();
+
+    $('ex').onclick = closeSheet;
+    $('esave').onclick = () => {
+      const d = draft();
+      if (!C.isValid(d)) return;
+      if (e) {
+        const i = state.trades.findIndex((x) => x.id === e.id);
+        if (i >= 0) state.trades[i] = d;
+      } else {
+        state.trades.push(d);
+      }
+      save(); closeSheet(); renderAll();
+      toast(e ? '已保存' : '已添加');
+    };
+    if (e) {
+      $('edel').onclick = () => {
+        if (!confirm(`删除这笔交易？\n\n${C.displayTitle(e)} · ${e.side === 'buy' ? '买入' : '卖出'} ${C.fmtPrice(e.price)} × ${C.fmtQty(e.quantity)}\n\n删除后持仓与利润会重新计算。`)) return;
+        state.trades = state.trades.filter((x) => x.id !== e.id);
+        pruneQuotes();
+        save(); closeSheet(); renderAll();
+        toast('已删除');
+      };
+    }
+  });
+}
+
+// 删掉没有任何交易记录的标的报价，否则几个月后重新交易时旧价会被当成当前价复活。
+function pruneQuotes() {
+  const live = new Set(state.trades.filter((t) => !t.archiveId).map((t) => t.code));
+  for (const k of Object.keys(state.quotes)) if (!live.has(k)) delete state.quotes[k];
+}
+
+/* ── 流水页 ───────────────────────────────────────────────── */
+
+/* 时间筛选用"一键选项"而不是两个空日期框：空的日期框在中文浏览器里显示成
+ * "年/月/日"占位符，电脑小白看不懂。选「自定义」时两个日期都预先填好。 */
+const filter = { side: 'all', range: 'all', from: '', to: '', q: '' };
+const RANGES = [['all', '全部'], ['1m', '近1个月'], ['3m', '近3个月'], ['ytd', '今年'], ['custom', '自定义']];
+
+function monthsAgo(n) {
+  const d = new Date();
+  const r = new Date(d.getFullYear(), d.getMonth() - n, d.getDate());
+  // 3/31 往前一个月会溢出成 3/3，退回到上个月最后一天
+  if (r.getDate() !== d.getDate()) r.setDate(0);
+  return ymd(r);
+}
+
+function rangeBounds() {
+  switch (filter.range) {
+    case '1m': return [monthsAgo(1), todayStr()];
+    case '3m': return [monthsAgo(3), todayStr()];
+    case 'ytd': return [`${new Date().getFullYear()}-01-01`, todayStr()];
+    case 'custom': return [filter.from, filter.to];
+    default: return ['', ''];
+  }
+}
+
+function firstTradeDay() {
+  const first = C.sortTrades(state.trades)[0];
+  return first ? ymd(new Date(first.date)) : monthsAgo(1);
+}
+
+const fmtDay = (s) => {
+  const [y, m, d] = s.split('-').map(Number);
+  return `${y}年${m}月${d}日`;
+};
+
+function renderTx() {
+  const el = $('v-tx');
+  if (!state.trades.length) {
+    el.innerHTML = `<div class="empty"><div class="ico">🧾</div><h3>还没有交易记录</h3>
+      <p>点右上角 + 添加第一笔交易。</p></div>`;
+    return;
+  }
+
+  let list = state.trades;
+  if (filter.side !== 'all') list = list.filter((t) => t.side === filter.side);
+  const [from, to] = rangeBounds();
+  if (from || to) list = list.filter((t) => C.inDateRange(t.date, from, to));
+  const kw = filter.q.trim();
+  if (kw) {
+    const up = C.normalizeCode(kw);
+    list = list.filter((t) =>
+      t.code.includes(up) ||
+      (t.name ?? '').toLowerCase().includes(kw.toLowerCase()) ||
+      (t.note ?? '').toLowerCase().includes(kw.toLowerCase()));
+  }
+  list = C.sortTrades(list).reverse();
+
+  const { cur, hist } = rounds();
+  const flagged = new Set([...cur, ...hist].flatMap((p) => p.diagnostics).map((d) => d.recordId));
+  const buyAmt = list.filter((t) => t.side === 'buy').reduce((s, t) => s + t.price * t.quantity, 0);
+  const sellAmt = list.filter((t) => t.side === 'sell').reduce((s, t) => s + t.price * t.quantity, 0);
+  let rangeText = '';
+  if (from && to) rangeText = `显示 <b>${fmtDay(from)}</b> 到 <b>${fmtDay(to)}</b> 的交易（含这两天）`;
+  else if (from) rangeText = `显示 <b>${fmtDay(from)}</b> 以后的交易`;
+  else if (to) rangeText = `显示 <b>${fmtDay(to)}</b> 以前的交易`;
+
+  let h = `<div class="txlayout"><div class="txside"><div class="sec"><div class="card"><div class="filterbar">
+    <div class="searchwrap"><span class="si">🔍</span>
+      <input id="q" type="search" placeholder="代码、名称或备注" value="${esc(filter.q)}"></div>
+    <div class="fl">买卖方向</div>
+    <div class="seg" id="sidef">
+      ${['all', 'buy', 'sell'].map((v) =>
+        `<button data-v="${v}" class="${filter.side === v ? 'on' : ''}">${{ all: '全部', buy: '买入', sell: '卖出' }[v]}</button>`).join('')}
+    </div>
+    <div class="fl">时间</div>
+    <div class="seg" id="rangef">
+      ${RANGES.map(([v, t]) => `<button data-v="${v}" class="${filter.range === v ? 'on' : ''}">${t}</button>`).join('')}
+    </div>
+    ${filter.range === 'custom' ? `<div class="daterow">
+      <label class="dl">从<input id="from" type="date" value="${esc(filter.from)}"></label>
+      <label class="dl">到<input id="to" type="date" value="${esc(filter.to)}"></label>
+    </div>` : ''}
+    ${rangeText ? `<div class="rangeinfo">${rangeText}</div>` : ''}
+  </div></div></div></div><div class="txmain">`;
+
+  if (!list.length) {
+    h += `<div class="sec"><div class="card"><div class="empty" style="padding:40px 20px">
+      <p>没有符合条件的记录</p></div></div></div></div></div>`;
+  } else {
+    h += `<div class="sec"><div class="sec-h">筛选结果（${list.length} 笔）</div><div class="card">
+      <div class="row"><span class="k">买入金额</span><span class="v mono">${C.fmtMoney(buyAmt)}</span></div>
+      <div class="row"><span class="k">卖出金额</span><span class="v mono">${C.fmtMoney(sellAmt)}</span></div>
+      </div></div>
+      <div class="sec"><div class="card">`;
+    for (const t of list) h += txRow(t, flagged.has(t.id), true);
+    h += `</div><div class="sec-f">点击可编辑或删除。</div></div></div></div>`;
+  }
+
+  el.innerHTML = h;
+
+  const q = $('q');
+  q.addEventListener('input', () => {
+    filter.q = q.value;
+    const pos = q.selectionStart;
+    renderTx();
+    const nq = $('q'); nq.focus(); nq.setSelectionRange(pos, pos);
+  });
+  $('sidef').querySelectorAll('button').forEach((b) =>
+    b.addEventListener('click', () => { filter.side = b.dataset.v; renderTx(); }));
+  $('rangef').querySelectorAll('button').forEach((b) =>
+    b.addEventListener('click', () => {
+      filter.range = b.dataset.v;
+      // 自定义：预填成"最早一笔交易 ~ 今天"，日期框永远不会是空的
+      if (filter.range === 'custom') {
+        filter.from ||= firstTradeDay();
+        filter.to ||= todayStr();
+      }
+      renderTx();
+    }));
+  // 用户把日期框清空时，恢复成预填值，而不是留下"年/月/日"占位符
+  $('from')?.addEventListener('change', (ev) => { filter.from = ev.target.value || firstTradeDay(); renderTx(); });
+  $('to')?.addEventListener('change', (ev) => { filter.to = ev.target.value || todayStr(); renderTx(); });
+  bindTxRows();
+}
+
+/* ── 设置页 ───────────────────────────────────────────────── */
+
+function renderSet() {
+  // 异步获取当前数据路径（仅桌面版服务器模式下有值）
+  const pathPromise = IS_SERVER
+    ? fetch('/api/datapath').then(r => r.json()).then(d => d.path).catch(() => null)
+    : Promise.resolve(null);
+
+  pathPromise.then(dataPath => {
+    $('v-set').innerHTML = `
+    <div class="sec"><div class="sec-h">交易</div><div class="card">
+      <div class="feerow"><label for="deffee">默认费率</label>
+        <div class="suffix" style="flex:1"><input id="deffee" type="text" inputmode="decimal"
+          style="text-align:right" value="${esc(C.fmtEditable(state.fee * 100))}"><span>%</span></div>
+      </div></div>
+      <div class="sec-f">新建交易时自动带入，每笔仍可单独修改。</div></div>
+
+    <div class="sec"><div class="sec-h">数据备份</div><div class="card">
+      <button class="item" id="ej"><span class="ic">⬆️</span>导出 JSON 备份<span class="ar">›</span></button>
+      <button class="item" id="ec"><span class="ic">📊</span>导出 CSV 表格<span class="ar">›</span></button>
+      <button class="item" id="im"><span class="ic">⬇️</span>导入备份文件<span class="ar">›</span></button>
+    </div>
+    <div class="sec-f">共 ${state.trades.length} 条记录。导出的 JSON 与 iOS 版格式相同，可互相导入。</div></div>
+
+    ${IS_SERVER ? `
+    <div class="sec"><div class="sec-h">数据文件位置</div><div class="card">
+      <div style="padding:13px 16px">
+        <div style="font-size:13px;color:var(--ink-2);margin-bottom:8px">当前路径</div>
+        <div id="cur-path" class="mono" style="font-size:13px;word-break:break-all;color:var(--ink);padding:10px 12px;background:var(--line-2);border-radius:8px">${esc(dataPath ?? '读取中…')}</div>
+      </div>
+      <button class="item" id="chpath" style="border-top:1px solid var(--line-2)">
+        <span class="ic">📁</span>更改存储路径<span class="ar">›</span>
+      </button>
+    </div>
+    <div class="sec-f">更改路径时，现有数据会自动复制到新位置，旧文件随后删除。</div></div>
+    ` : ''}
+
+    <div class="sec"><div class="sec-h">关于</div><div class="card">
+      <button class="item" id="mm"><span class="ic">📐</span>计算方式说明<span class="ar">›</span></button>
+    </div>
+    <div class="sec-f">数据只保存在本机，应用不联网、不上传。</div></div>`;
+
+    const fee = $('deffee');
+    fee.addEventListener('input', () => {
+      const v = Number(fee.value.trim());
+      if (!fee.value.trim() || !Number.isFinite(v) || v <= 0) return;
+      const r = v / 100;
+      if (r >= 0 && r < 1) { state.fee = r; save(); }
+    });
+    $('ej').onclick = () => download(`SwingCalc-${todayStr()}.json`, C.encodeJSON(state.trades), 'application/json');
+    $('ec').onclick = () => download(`SwingCalc-${todayStr()}.csv`, C.encodeCSV(state.trades), 'text/csv');
+    $('im').onclick = doImport;
+    $('mm').onclick = openMethodology;
+    if (IS_SERVER) $('chpath').onclick = openChangeDataPath;
+  });
+}
+
+function download(name, text, mime) {
+  if (!state.trades.length) { toast('没有可导出的数据'); return; }
+  const blob = new Blob([text], { type: mime + ';charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast('已导出 ' + name);
+}
+
+function openChangeDataPath() {
+  fetch('/api/datapath').then(r => r.json()).then(d => {
+    const cur = d.path ?? '';
+    openSheet(`
+      <div class="sheet-h">
+        <button id="cpdx">取消</button>
+        <h2>更改存储路径</h2>
+        <button id="cpsave" disabled>确认</button>
+      </div>
+      <div class="sheet-b">
+        <div class="sec-h" style="padding:0 4px 10px">当前路径</div>
+        <div class="mono" style="font-size:13px;word-break:break-all;padding:10px 12px;
+          background:var(--line-2);border-radius:8px;margin-bottom:18px">${esc(cur)}</div>
+        <div class="field">
+          <label for="cpinput">新路径（完整文件路径，以 .json 结尾）</label>
+          <input id="cpinput" type="text" placeholder="${esc(cur)}" value="${esc(cur)}" autocorrect="off" spellcheck="false">
+          <div class="hint">现有数据会自动复制到新位置，旧文件随后删除。</div>
+          <div class="hint warn" id="cperr"></div>
+        </div>
+      </div>`, () => {
+      const inp = $('cpinput');
+      const saveBtn = $('cpsave');
+      const errEl = $('cperr');
+      inp.select();
+      inp.addEventListener('input', () => {
+        const v = inp.value.trim();
+        const changed = v !== cur && v !== '';
+        const valid = changed && v.endsWith('.json');
+        errEl.textContent = (changed && !v.endsWith('.json')) ? '路径必须以 .json 结尾' : '';
+        saveBtn.disabled = !valid;
+      });
+      $('cpdx').onclick = closeSheet;
+      saveBtn.onclick = async () => {
+        const newPath = inp.value.trim();
+        saveBtn.disabled = true;
+        saveBtn.textContent = '迁移中…';
+        try {
+          const r = await fetch('/api/datapath', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: newPath }),
+          });
+          const body = await r.json();
+          if (!r.ok) throw new Error(body.error ?? '未知错误');
+          closeSheet();
+          toast('路径已更新：' + body.path);
+          renderSet();
+        } catch (e) {
+          errEl.textContent = '更改失败：' + e.message;
+          saveBtn.disabled = false;
+          saveBtn.textContent = '确认';
+        }
+      };
+    });
+  }).catch(() => toast('无法读取当前路径'));
+}
+
+function doImport() {
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.json,application/json';
+  inp.onchange = async () => {
+    const f = inp.files?.[0];
+    if (!f) return;
+    let incoming;
+    try {
+      incoming = C.decodeBackup(await f.text());
+    } catch (err) {
+      alert('导入失败\n\n' + (err.message || '无法识别的备份格式。'));
+      return;
+    }
+    showImportPlan(incoming);
+  };
+  inp.click();
+}
+
+function showImportPlan(incoming) {
+  let overwrite = false;
+  const paint = () => {
+    const plan = C.planMerge(incoming, state.trades, overwrite);
+    let h = `<div class="sheet-h"><button id="ix">取消</button><h2>确认导入</h2>
+      <button id="igo" ${plan.changesAnything ? '' : 'disabled'}>导入</button></div>
+      <div class="sheet-b"><div class="sec"><div class="sec-h">将要执行</div><div class="card">
+      <div class="row"><span class="k">文件中共</span><span class="v mono">${incoming.length} 条</span></div>
+      <div class="row big"><span class="k">新增记录</span><span class="v mono">${plan.toInsert.length}</span></div>`;
+    if (plan.toOverwrite.length)
+      h += `<div class="row"><span class="k">覆盖记录</span><span class="v mono" style="color:var(--warn)">${plan.toOverwrite.length}</span></div>`;
+    h += `</div></div>`;
+
+    if (plan.duplicates.length || plan.conflicts.length) {
+      h += `<div class="sec"><div class="sec-h">跳过</div><div class="card">`;
+      if (plan.duplicates.length)
+        h += `<div class="row"><span class="k">跳过重复</span><span class="v mono">${plan.duplicates.length}</span></div>`;
+      if (plan.conflicts.length)
+        h += `<div class="row"><span class="k">ID 冲突</span><span class="v mono" style="color:var(--warn)">${plan.conflicts.length}</span></div>
+          <div class="row"><span class="k">覆盖冲突的本地记录</span>
+          <input type="checkbox" id="ow" ${overwrite ? 'checked' : ''} style="width:auto"></div>`;
+      h += `</div><div class="sec-f">${plan.conflicts.length
+        ? '冲突指 ID 相同但内容不同的记录。默认保留本机版本。'
+        : '重复指 ID 与内容都相同的记录，保留本机版本即可。'}</div></div>`;
+    }
+
+    if (plan.invalid.length) {
+      h += `<div class="sec"><div class="sec-h">无效记录（${plan.invalid.length}）</div><div class="card">`;
+      for (const v of plan.invalid.slice(0, 8))
+        h += `<div class="row"><span class="k">第 ${v.index + 1} 条${v.title ? '：' + esc(v.title) : ''}</span>
+          <span class="v faint" style="font-size:13px">${esc(v.reason)}</span></div>`;
+      h += `</div></div>`;
+    }
+
+    if (!plan.changesAnything)
+      h += `<div class="sec"><div class="sec-f">这个文件里的记录本机都已存在，导入不会有任何改变。</div></div>`;
+    h += `</div>`;
+
+    openSheet(h, () => {
+      $('ix').onclick = closeSheet;
+      $('ow')?.addEventListener('change', (e) => { overwrite = e.target.checked; paint(); });
+      $('igo').onclick = () => {
+        for (const r of plan.toInsert) state.trades.push(r);
+        for (const r of plan.toOverwrite) {
+          const i = state.trades.findIndex((x) => x.id === r.id);
+          if (i >= 0) state.trades[i] = r;
+        }
+        save(); closeSheet(); renderAll();
+        toast(plan.summary);
+      };
+    });
+  };
+  paint();
+}
+
+function openMethodology() {
+  openSheet(`<div class="sheet-h"><button id="mx">返回</button><h2>计算方式说明</h2><span style="min-width:48px"></span></div>
+    <div class="sheet-b">
+      <div class="sec"><div class="sec-h">持仓成本</div><div class="card"><div style="padding:15px 16px; line-height:1.65">
+        <p style="margin:0 0 10px">采用<b>移动加权平均成本法</b>，与券商 App 里「持仓成本」的口径一致。</p>
+        <p style="margin:0">每次买入把成交额与手续费一并计入成本；每次卖出按当时的平均成本结转对应部分，剩下的成本继续摊在剩余持仓上。</p>
+      </div></div></div>
+
+      <div class="sec"><div class="sec-h">落袋利润</div><div class="card"><div style="padding:15px 16px; line-height:1.65">
+        卖出净收入减去结转的成本，逐笔累加。清仓再建仓时，新一轮的成本从零重新计算，已落袋的利润继续保留。
+      </div></div></div>
+
+      <div class="sec"><div class="sec-h">为什么不用全局平均</div><div class="card">
+        <div style="padding:15px 16px" class="mono">买 100 股 @ 10 元<br>卖 100 股 @ 12 元<br>再买 100 股 @ 20 元</div>
+        <div class="row"><span class="k">本应用（移动加权）</span><span class="v mono up">落袋 +200</span></div>
+        <div class="row"><span class="k">全局平均法</span><span class="v mono down">落袋 −300</span></div>
+      </div>
+      <div class="sec-f">全局平均法把全部买入一起平均（此例为 15 元），结果是三月份的一笔买入会倒过来改变一月份已了结交易的盈亏——一笔赚钱的交易被显示成亏损。本应用不采用这种算法。<br><br>当所有买入都发生在所有卖出之前时，两种算法结果完全相同。</div></div>
+
+      <div class="sec"><div class="sec-h">与摊薄成本的区别</div><div class="card"><div style="padding:15px 16px; line-height:1.65">
+        本应用把<b>成本</b>与<b>已落袋利润</b>分开显示。部分券商显示的是「摊薄成本」（净投入现金 ÷ 持仓量），在已经落袋过利润后可能变成负数。两者口径不同，数字对不上是正常的。
+      </div></div></div>
+
+      <div class="sec"><div class="sec-h">手续费</div><div class="card"><div style="padding:15px 16px; line-height:1.65">
+        买入按 (1 + 费率) 计入成本，卖出按 (1 − 费率) 计入收入。费率可以每笔单独设置，默认值在设置页修改。
+      </div></div></div>
+    </div>`, () => { $('mx').onclick = closeSheet; });
+}
+
+/* ── Tab 切换 ─────────────────────────────────────────────── */
+
+const TITLES = ['持仓', '流水', '设置'];
+
+function switchTab(i) {
+  state.tab = i;
+  $('ttl').textContent = TITLES[i];
+  $('v-pos').classList.toggle('hide', i !== 0);
+  $('v-tx').classList.toggle('hide', i !== 1);
+  $('v-set').classList.toggle('hide', i !== 2);
+  $('add').classList.toggle('hide', i === 2);
+  [0, 1, 2].forEach((n) => $('t' + n).classList.toggle('on', n === i));
+  renderAll();
+  window.scrollTo(0, 0);
+}
+
+function renderAll() {
+  if (state.tab === 0) renderPositions();
+  else if (state.tab === 1) renderTx();
+  else renderSet();
+}
+
+[0, 1, 2].forEach((i) => $('t' + i).addEventListener('click', () => switchTab(i)));
+$('add').addEventListener('click', () => openEditor(null));
+
+/* ── 启动 ─────────────────────────────────────────────────── */
+
+(async () => { await load(); switchTab(0); })();
+
+</script>
